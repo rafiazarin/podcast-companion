@@ -6,3 +6,6 @@ MIN_QUOTE_WORDS = 6             # shorter quotes ("Interleaving.") prove nothing
 MIN_TRANSCRIPT_WORDS = 150      # less than this is too little to summarise or quiz on
 MAX_UPLOAD_BYTES = 200_000      # 3,500 words is about 20 KB, so this is generous
 UPLOAD_TYPES = ["txt", "srt", "vtt"]
+QUIZ_QUESTIONS = 5              # asked for in the prompt
+MIN_QUIZ_QUESTIONS = 3          # fewer usable questions than this counts as a failed answer
+MIN_CHAPTERS, MAX_CHAPTERS = 2, 8
