@@ -40,3 +40,16 @@ def test_markdown_has_every_section_and_the_correct_answers():
 
 def test_markdown_uses_the_revised_overview_when_given():
     assert "My shorter version." in to_markdown(PACK, "My shorter version.", [])
+
+
+def test_clock_formats_minutes_and_hours():
+    from formatting import clock
+    assert clock(5) == "0:05"
+    assert clock(65.9) == "1:05"
+    assert clock(3725) == "1:02:05"
+
+
+def test_markdown_shows_times_only_when_the_input_had_them():
+    with_times = to_markdown(PACK, PACK.overview, [], seconds_at=lambda pos: 75.0)
+    assert "(at 1:15)" in with_times
+    assert "(at " not in to_markdown(PACK, PACK.overview, [])

@@ -1,5 +1,6 @@
 """Turn results into text for the screen and for download. No Streamlit and no AI here."""
 import html
+from typing import Callable
 
 from schemas import StudyPack
 
@@ -26,25 +27,44 @@ def excerpt_html(text: str, show_start: int, show_end: int, mark_start: int, mar
     return f'<div class="transcript">{before}<mark>{esc(text[mark_start:mark_end])}</mark>{after}</div>'
 
 
+def clock(seconds: float) -> str:
+    """65 -> "1:05", 3725 -> "1:02:05"."""
+    seconds = int(seconds)
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
+
+
 def trust_line(pack: StudyPack) -> str:
     return f"{pack.quotes_verified} of {pack.quotes_total} quotes were found in the transcript."
 
 
-def to_markdown(pack: StudyPack, overview: str, notices: list[str]) -> str:
-    """Everything in one Markdown document, including answers and which quotes were verified."""
+def to_markdown(pack: StudyPack, overview: str, notices: list[str],
+                seconds_at: Callable[[int], float | None] | None = None) -> str:
+    """Everything in one Markdown document, including answers and which quotes were verified.
+
+    seconds_at turns a position in the transcript into a time; it is None when the input had no timings.
+    """
     def mark(check) -> str:
         return "found in transcript" if check.verified else "NOT found in transcript"
+
+    def at(check) -> str:
+        if seconds_at is None or not check.verified:
+            return ""
+        return f" (at {clock(seconds_at(check.start))})"
 
     lines = ["# Podcast study pack", "", f"_{trust_line(pack)} Checked by code, not by the AI._", ""]
     lines += [f"> {n}" for n in notices] + ([""] if notices else [])
     lines += ["## Overview", "", overview, "", "## Chapters", ""]
     for i, c in enumerate(pack.chapters, start=1):
-        lines += [f"### {i}. {c.title}", "", c.summary, "", f"Starts with: \"{c.start_quote}\" ({mark(c.check)})", ""]
+        lines += [f"### {i}. {c.title}{at(c.check)}", "", c.summary, "",
+                  f"Starts with: \"{c.start_quote}\" ({mark(c.check)})", ""]
     lines += ["## Quiz", ""]
     for i, q in enumerate(pack.quiz, start=1):
         lines += [f"**{i}. {q.question}**", ""]
         lines += [f"- {LETTERS[j]}. {option}" for j, option in enumerate(q.options)]
         lines += ["", f"Answer: {LETTERS[q.answer_index]}. {q.options[q.answer_index]}",
-                  f"Why: {q.explanation}", f"Evidence: \"{q.evidence_quote}\" ({mark(q.check)})", ""]
-    lines += ["---", "Timestamps are not included: this version works from text only."]
+                  f"Why: {q.explanation}", f"Evidence: \"{q.evidence_quote}\" ({mark(q.check)}){at(q.check)}", ""]
+    lines += ["---", "Times come from the input's own timings." if seconds_at else
+              "No times are included: the input had no timings, and the app never guesses them."]
     return "\n".join(lines)

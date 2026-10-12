@@ -140,3 +140,25 @@ def test_request_counter_includes_a_revision(fake):
     button(at, "Generate study pack").click().run()
     button(at, "Shorter").click().run()
     assert f"{MAX_RUNS_PER_SESSION - 2} AI requests left" in texts(at.caption)
+
+
+def youtube_style(text):
+    """The sample with a time line before every paragraph, like a copied YouTube transcript."""
+    paragraphs = [p for p in text.split("\n\n") if p.strip()]
+    return "\n".join(f"{i // 2}:{(i % 2) * 30:02d}\n{p}" for i, p in enumerate(paragraphs))
+
+
+def test_transcript_with_times_shows_chapter_times(fake):
+    at = start()
+    at.text_area(key="transcript_text").input(youtube_style(SAMPLE)).run()
+    button(at, "Generate study pack").click().run()
+    assert not at.exception
+    assert "9 of 9 quotes were found" in texts(at.success)
+    assert all("·" in e.label for e in at.expander if e.label[:1].isdigit())
+    assert "has times in it" in texts(at.info)
+
+
+def test_plain_text_says_no_times_are_shown(fake):
+    at = generate_sample(start())
+    assert "never guesses them" in texts(at.caption)
+    assert not any("·" in e.label for e in at.expander if e.label[:1].isdigit())

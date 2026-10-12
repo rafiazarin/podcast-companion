@@ -1,5 +1,5 @@
 [server]
-maxUploadSize = 1  # MB. Streamlit rejects bigger files before my code runs.
+maxUploadSize = 25  # MB, the same as Groq's free audio limit. Text files are limited to 200 KB in code.
 
 [browser]
 gatherUsageStats = false  # no usage statistics sent to Streamlit

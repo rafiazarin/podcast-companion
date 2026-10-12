@@ -93,7 +93,7 @@ def test_bad_key_is_not_retried():
 
 def test_request_too_large_says_so():
     backend = FakeBackend(status_error(groq.APIStatusError, 413))
-    with pytest.raises(AIError, match="too long"):
+    with pytest.raises(AIError, match="too large"):
         run(backend)
 
 
@@ -118,3 +118,38 @@ def test_revision_request_must_be_present_and_short(request_text):
     with pytest.raises(InputError):
         revise_overview(backend, SAMPLE, "Old overview.", request_text)
     assert backend.calls == 0   # rejected before any request is sent
+
+
+class FakeSpeech:
+    def __init__(self, *outcomes):
+        self.outcomes = list(outcomes)
+        self.calls = 0
+
+    def transcribe(self, filename, data):
+        self.calls += 1
+        outcome = self.outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+def test_transcription_returns_timed_lines_and_skips_empty_ones():
+    from llm import transcribe_audio
+    backend = FakeSpeech([{"start": 0.0, "text": " Hello there. "}, {"start": 4.2, "text": "  "},
+                          {"start": 6.5, "text": "Second line."}])
+    assert transcribe_audio(backend, "a.mp3", b"x") == [(0.0, "Hello there."), (6.5, "Second line.")]
+
+
+def test_transcription_with_no_speech_is_retried_then_explained():
+    from llm import transcribe_audio
+    backend = FakeSpeech([], [])
+    with pytest.raises(AIError, match="usable answer"):
+        transcribe_audio(backend, "a.mp3", b"x")
+    assert backend.calls == 2
+
+
+def test_transcription_rate_limit_uses_the_same_handling():
+    from llm import transcribe_audio
+    backend = FakeSpeech(status_error(groq.RateLimitError, 429, {"retry-after": "600"}))
+    with pytest.raises(AIError, match="about 10 minutes"):
+        transcribe_audio(backend, "a.mp3", b"x")

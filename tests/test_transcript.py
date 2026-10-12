@@ -35,11 +35,15 @@ def test_exactly_at_the_limits_passes():
     assert prepare(words(MAX_TRANSCRIPT_WORDS)).word_count == MAX_TRANSCRIPT_WORDS
 
 
-def test_srt_timing_lines_are_removed_and_the_user_is_told():
-    cue = "1\n00:00:01,000 --> 00:00:04,000\n" + words(100) + "\n\n2\n00:00:04,500 --> 00:00:09,000\n" + words(100)
+def test_srt_keeps_words_and_their_real_times():
+    cue = ("1\n00:00:01,000 --> 00:00:04,000\n" + words(100) + "\n\n"
+           "2\n00:01:04,500 --> 00:01:09,000\n" + words(100))
     t = prepare(cue)
     assert "-->" not in t.text
     assert t.word_count == 200
+    assert t.has_times
+    assert t.seconds_at(0) == 1.0
+    assert t.seconds_at(len(t.text) - 1) == 64.5
     assert "subtitle" in t.notices[0]
 
 
@@ -49,6 +53,32 @@ def test_vtt_header_and_tags_are_removed():
     t = prepare(vtt)
     assert "WEBVTT" not in t.text and "<c>" not in t.text
     assert t.word_count == 200
+    assert t.cue_times == [1.0, 4.5]
+
+
+def test_youtube_style_times_on_their_own_lines_are_kept():
+    yt = "0:00\n" + words(60) + "\n0:45\n" + words(60) + "\n1:02:03\n" + words(60)
+    t = prepare(yt)
+    assert t.cue_times == [0, 45, 3723]
+    assert t.word_count == 180
+    assert "0:45" not in t.text
+
+
+def test_youtube_style_times_at_the_start_of_lines_are_kept():
+    yt = "\n".join(f"{m}:00 " + words(40) for m in range(5))
+    t = prepare(yt)
+    assert t.cue_times == [0, 60, 120, 180, 240]
+
+
+def test_plain_text_has_no_times():
+    t = prepare(words(300))
+    assert not t.has_times
+    assert t.seconds_at(10) is None
+
+
+def test_times_out_of_order_are_not_treated_as_a_timed_transcript():
+    text = "\n".join(["5:00 " + words(60), "1:00 " + words(60), "3:00 " + words(60)])
+    assert not prepare(text).has_times
 
 
 def test_one_arrow_in_normal_text_is_not_treated_as_subtitles():

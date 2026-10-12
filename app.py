@@ -1,4 +1,5 @@
 """The screen. Only this file uses Streamlit. All real logic lives in plain Python modules."""
+import hashlib
 import logging
 import os
 import time
@@ -7,10 +8,12 @@ from pathlib import Path
 import streamlit as st
 
 import llm
-from config import MAX_RUNS_PER_SESSION, MAX_TRANSCRIPT_WORDS, MIN_QUOTE_WORDS, MODEL, UPLOAD_TYPES
-from formatting import LETTERS, excerpt_html, to_markdown, trust_line
+from audio import check_audio, is_audio
+from config import (MAX_AUDIO_MINUTES, MAX_RUNS_PER_SESSION, MAX_TRANSCRIPT_WORDS, MIN_QUOTE_WORDS, MODEL,
+                    TRANSCRIBE_MODEL, UPLOAD_TYPES)
+from formatting import LETTERS, clock, excerpt_html, to_markdown, trust_line
 from grounding import TranscriptIndex
-from transcript import InputError, prepare, read_upload
+from transcript import InputError, Transcript, from_cues, prepare, read_upload
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("app")
@@ -57,6 +60,7 @@ state = st.session_state
 state.setdefault("runs", 0)
 state.setdefault("result", None)
 state.setdefault("result_id", 0)
+state.setdefault("transcriptions", {})   # speech-to-text results for this visit, so the same file isn't sent twice
 
 
 def runs_left() -> int:
@@ -66,6 +70,7 @@ def runs_left() -> int:
 # ---------- actions ----------
 
 def generate(raw: str, source: str) -> None:
+    """Make a study pack from pasted or uploaded text."""
     try:
         transcript = prepare(raw)
     except InputError as problem:
@@ -75,16 +80,66 @@ def generate(raw: str, source: str) -> None:
     is_sample = transcript.text == SAMPLE_TEXT.strip()
     store = sample_store()
     if is_sample and "pack" in store:
-        save_result(store["pack"], transcript, raw, source, seconds=None, cached=True)
+        save_result(store["pack"], transcript, raw.strip(), source, seconds=None, cached=True)
         return
+    pack, seconds = make_pack(transcript)
+    if pack is None:
+        return
+    if is_sample:
+        store["pack"] = pack
+    save_result(pack, transcript, raw.strip(), source, seconds, cached=False)
+
+
+def generate_from_audio(filename: str, data: bytes) -> None:
+    """Turn audio into a timed transcript (once per file), then make a study pack from it."""
+    try:
+        length = check_audio(filename, data)
+    except InputError as problem:
+        st.warning(str(problem))
+        return
+    digest = hashlib.sha256(data).hexdigest()
+    cues = state.transcriptions.get(digest)
+    if cues is None:
+        if not ready_for_ai():
+            return
+        with st.status("Turning speech into text…", expanded=True) as status:
+            st.write(f"Audio checked: {clock(length)} long. Sending it to {TRANSCRIBE_MODEL}…")
+            try:
+                cues = llm.transcribe_audio(backend(), filename, data)
+            except llm.AIError as problem:
+                state.runs += 1
+                status.update(label="Couldn't turn the audio into text", state="error", expanded=False)
+                st.error(str(problem))
+                return
+            state.runs += 1
+            status.update(label="Speech turned into text", state="complete", expanded=False)
+        state.transcriptions[digest] = cues
+    try:
+        transcript = from_cues(cues, [f"Transcribed from audio by {TRANSCRIBE_MODEL}. Chapter times come from "
+                                      "its speech segments, so they are accurate to the start of a sentence or two."])
+    except InputError as problem:
+        st.warning(str(problem))
+        return
+    pack, seconds = make_pack(transcript)
+    if pack is not None:
+        save_result(pack, transcript, f"audio:{digest}", f"audio file {filename}", seconds, cached=False)
+
+
+def ready_for_ai() -> bool:
     if runs_left() <= 0:
         st.warning(f"You've used all {MAX_RUNS_PER_SESSION} AI requests for this visit. "
                    "This keeps the shared free quota available for everyone.")
-        return
+        return False
     if backend() is None:
         st.error("The app isn't set up with an AI key yet, so it can't generate anything.")
-        return
+        return False
+    return True
 
+
+def make_pack(transcript: Transcript):
+    """The one AI request that makes the overview, chapters and quiz. Returns (pack, seconds) or (None, None)."""
+    if not ready_for_ai():
+        return None, None
     with st.status("Working on it…", expanded=True) as status:
         st.write(f"Transcript checked: {transcript.word_count:,} words.")
         st.write(f"Asking the AI ({MODEL}). This usually takes a few seconds…")
@@ -95,20 +150,18 @@ def generate(raw: str, source: str) -> None:
             state.runs += 1
             status.update(label="Couldn't finish", state="error", expanded=False)
             st.error(str(problem))
-            return
+            return None, None
         state.runs += 1
-        seconds = time.perf_counter() - started
         st.write("Quotes checked against your transcript.")
         status.update(label="Done", state="complete", expanded=False)
-
-    if is_sample:
-        store["pack"] = pack
-    save_result(pack, transcript, raw, source, seconds, cached=False)
+    return pack, time.perf_counter() - started
 
 
-def save_result(pack, transcript, raw, source, seconds, cached) -> None:
+def save_result(pack, transcript, marker, source, seconds, cached) -> None:
+    """`marker` identifies the input, so the page can tell when the input has changed since."""
     state.result_id += 1
-    state.result = {"pack": pack, "text": transcript.text, "raw": raw.strip(), "notices": transcript.notices,
+    state.result = {"pack": pack, "text": transcript.text, "transcript": transcript, "marker": marker,
+                    "notices": transcript.notices,
                     "source": source, "seconds": seconds, "cached": cached,
                     "overviews": [("Original", pack.overview)], "quiz_checked": False}
 
@@ -204,11 +257,17 @@ def show_overview(result) -> None:
 
 
 def show_chapters(result) -> None:
-    pack, text = result["pack"], result["text"]
-    st.caption("Timestamps aren't shown: this version works from text only and never guesses times.")
+    pack, text, timing = result["pack"], result["text"], result["transcript"]
+    if timing.has_times:
+        st.caption("Times come from the timings in your input. Each one is the start of the line "
+                   "where the chapter begins.")
+    else:
+        st.caption("No times are shown: this input has no timings, and the app never guesses them.")
     for i, (chapter, span) in enumerate(zip(pack.chapters, pack.chapter_spans(len(text))), start=1):
         flag = "" if chapter.check.verified else " ⚠️"
-        with st.expander(f"{i}. {chapter.title}{flag}"):
+        when = timing.seconds_at(chapter.check.start) if chapter.check.verified else None
+        at = f" · {clock(when)}" if when is not None else ""
+        with st.expander(f"{i}. {chapter.title}{at}{flag}"):
             st.write(chapter.summary)
             if span is None:
                 st.warning(f"This chapter's starting sentence wasn't found in the transcript "
@@ -223,13 +282,14 @@ def show_chapters(result) -> None:
 
 def show_quiz(result) -> None:
     pack, text, rid = result["pack"], result["text"], state.result_id
+    timing = result["transcript"]
     checked = result["quiz_checked"]
     with st.form(f"quiz_{rid}"):
         for i, q in enumerate(pack.quiz):
             choice = st.radio(f"**{i + 1}. {q.question}**", options=list(range(len(q.options))), index=None,
                               key=f"q{rid}_{i}", format_func=lambda j, q=q: f"{LETTERS[j]}. {q.options[j]}")
             if checked:
-                show_feedback(q, choice, text)
+                show_feedback(q, choice, text, timing)
         st.form_submit_button("Check my answers", type="primary", on_click=check_quiz)
     if checked:
         answers = [state.get(f"q{rid}_{i}") for i in range(len(pack.quiz))]
@@ -238,7 +298,7 @@ def show_quiz(result) -> None:
         st.button("Try the quiz again", on_click=reset_quiz)
 
 
-def show_feedback(q, choice, text) -> None:
+def show_feedback(q, choice, text, timing) -> None:
     right = f"{LETTERS[q.answer_index]}. {q.options[q.answer_index]}"
     if choice is None:
         st.info(f"Not answered. The answer is {right}")
@@ -248,6 +308,9 @@ def show_feedback(q, choice, text) -> None:
         st.error(f"Not quite. The answer is {right}")
     st.caption(q.explanation)
     if q.check.verified:
+        when = timing.seconds_at(q.check.start)
+        if when is not None:
+            st.caption(f"In the episode at {clock(when)}:")
         st.markdown(excerpt_html(text, q.check.start - 200, q.check.end + 200, q.check.start, q.check.end),
                     unsafe_allow_html=True)   # safe: excerpt_html escapes all transcript text
     else:
@@ -256,30 +319,42 @@ def show_feedback(q, choice, text) -> None:
 
 
 def show_export(result) -> None:
-    markdown = to_markdown(result["pack"], result["overviews"][-1][1], result["notices"])
+    timing = result["transcript"]
+    markdown = to_markdown(result["pack"], result["overviews"][-1][1], result["notices"],
+                           timing.seconds_at if timing.has_times else None)
     st.download_button("Download as Markdown (.md)", markdown, file_name="podcast-study-pack.md",
                        mime="text/markdown", type="primary")
     st.caption("Or copy it with the button at the top right of the box below.")
     st.code(markdown, language="markdown")
+    if result["marker"].startswith("audio:"):
+        st.download_button("Download the transcript (.txt)", result["text"], file_name="transcript.txt",
+                           mime="text/plain")
 
 
 # ---------- page ----------
 
 st.title("🎧 Podcast Companion")
-st.write("Paste a podcast transcript and get an overview, chapters you can open, and a quiz. "
-         "Every quote is checked against your transcript.")
-st.caption("Only use transcripts you have permission to use. The text is sent to Groq, an AI provider, "
-           "to be processed. This app doesn't store what you paste.")
+st.write("Paste a podcast transcript or upload the audio, and get an overview, chapters you can open, "
+         "and a quiz. Every quote is checked against the transcript.")
+st.caption("Only use episodes you have permission to use. Text and audio are sent to Groq, an AI provider, "
+           "to be processed. This app doesn't store what you send.")
 
 st.text_area("Transcript", key="transcript_text", height=220,
              placeholder="Paste the transcript here, or load the sample below.")
-uploaded = st.file_uploader("Or upload a file", type=UPLOAD_TYPES,
-                            help="Plain text, or .srt/.vtt subtitles (timings are removed).")
+uploaded = st.file_uploader(
+    "Or upload a file", type=UPLOAD_TYPES,
+    help=f"Text: .txt, or .srt/.vtt subtitles (their timings are kept). "
+         f"Audio: .mp3, .m4a, .wav, .ogg or .flac, up to {MAX_AUDIO_MINUTES} minutes and 25 MB.")
 st.button("Load a sample episode", on_click=load_sample,
           help="A short invented episode about study techniques. It's free to try: its result is kept in memory.")
 
 raw, source = state.get("transcript_text", ""), "pasted text"
-if uploaded is not None:
+audio_upload = uploaded is not None and is_audio(uploaded.name)
+if audio_upload:
+    st.audio(uploaded)
+    st.caption(f"Using the audio file {uploaded.name} instead of the text box. "
+               "It uses 2 AI requests: one to turn speech into text, one for the study pack.")
+elif uploaded is not None:
     try:
         raw, source = read_upload(uploaded.name, uploaded.getvalue()), f"file {uploaded.name}"
         st.caption(f"Using the uploaded file {uploaded.name} instead of the text box.")
@@ -290,9 +365,13 @@ if uploaded is not None:
 word_count = len(raw.split())
 counter = st.empty()   # a placeholder: filled in at the very end of the page, so the number is never out of date
 
-if st.button("Generate study pack", type="primary", disabled=not raw.strip(), width="stretch"):
+if st.button("Generate study pack", type="primary", disabled=not (raw.strip() or audio_upload),
+             width="stretch"):
     try:
-        generate(raw, source)
+        if audio_upload:
+            generate_from_audio(uploaded.name, uploaded.getvalue())
+        else:
+            generate(raw, source)
     except Exception:   # last safety net: log the details, show a calm message, never a traceback
         log.exception("Unexpected error while generating")
         st.error("Something unexpected went wrong. Please try again.")
@@ -300,8 +379,9 @@ if st.button("Generate study pack", type="primary", disabled=not raw.strip(), wi
 result = state.result
 if result:
     st.divider()
-    if raw.strip() and raw.strip() != result["raw"]:
-        st.info("The transcript above has changed since these results were made. Generate again to update them.")
+    current = f"audio:{hashlib.sha256(uploaded.getvalue()).hexdigest()}" if audio_upload else raw.strip()
+    if current and current != result["marker"]:
+        st.info("The input above has changed since these results were made. Generate again to update them.")
     st.subheader("Your study pack")
     st.caption(f"From {result['source']}.")
     show_trust(result)
@@ -320,10 +400,13 @@ with st.expander("How this works, and its limits"):
 - **AI:** {MODEL} on Groq's free plan. One request makes the overview, chapters and quiz together.
 - **Checking:** every chapter and quiz answer must quote the transcript. The app looks each quote up itself.
   Quotes under {MIN_QUOTE_WORDS} words don't count. Quiz options are shuffled by the app, and broken questions are removed.
+- **Audio:** turned into text by {TRANSCRIBE_MODEL} on Groq, then handled like a transcript. The length is read
+  from the file first, so anything over {MAX_AUDIO_MINUTES} minutes is turned away before it is sent.
 - **Limits:** up to {MAX_TRANSCRIPT_WORDS:,} words per run (about 20 to 25 minutes of speech), and
   {MAX_RUNS_PER_SESSION} AI requests per visit, so the shared free quota lasts.
-- **Timestamps:** not shown. This version works from text only and never guesses times.
-- **Privacy:** what you paste is sent to Groq to be processed and is not stored by this app. Zero Data Retention
+- **Timestamps:** shown only when the input has real timings: audio, .srt/.vtt files, or transcripts with times
+  in them (such as a copied YouTube transcript). Plain text gets no times. The app never guesses them.
+- **Privacy:** what you send goes to Groq to be processed and is not stored by this app. Zero Data Retention
   is switched on for this app's Groq account. Only the built-in sample's result is kept in memory.
 - **Sleep:** the free host pauses the app after 12 hours without visitors, so the first load can be slow.
 """)
@@ -331,4 +414,7 @@ st.caption("Built by Rafia Zarin Alisha for the Thealon AI Engineering Challenge
            "[Source code](https://github.com/rafiazarin/podcast-companion)")
 
 # Filled last, so it also counts a revision made further down the page.
-counter.caption(f"{word_count:,} / {MAX_TRANSCRIPT_WORDS:,} words · {runs_left()} AI requests left this visit")
+if audio_upload:
+    counter.caption(f"Audio file · {runs_left()} AI requests left this visit")
+else:
+    counter.caption(f"{word_count:,} / {MAX_TRANSCRIPT_WORDS:,} words · {runs_left()} AI requests left this visit")

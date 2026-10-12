@@ -6,18 +6,19 @@ reason goes to the log, without the transcript or the key.
 import logging
 import random
 import time
-from typing import Callable, Protocol
+from typing import Callable, Protocol, TypeVar
 
 import groq
 
 import prompts
 from config import (MAX_ATTEMPTS, MAX_REVISION_CHARS, MAX_WAIT_SECONDS, MODEL, REASONING_EFFORT,
-                    TIMEOUT_SECONDS)
+                    TIMEOUT_SECONDS, TRANSCRIBE_MODEL)
 from grounding import TranscriptIndex
 from schemas import OVERVIEW_SCHEMA, STUDY_PACK_SCHEMA, BadOutput, StudyPack, parse_overview, parse_study_pack
 from transcript import InputError
 
 log = logging.getLogger(__name__)
+T = TypeVar("T")
 
 
 class AIError(Exception):
@@ -27,6 +28,7 @@ class AIError(Exception):
 class Backend(Protocol):
     """Anything that can send one request and return the raw text. Tests use a fake one."""
     def complete(self, system: str, user: str, schema_name: str, schema: dict) -> str: ...
+    def transcribe(self, filename: str, data: bytes) -> list[dict]: ...
 
 
 class GroqBackend:
@@ -45,6 +47,12 @@ class GroqBackend:
         )
         return response.choices[0].message.content or ""
 
+    def transcribe(self, filename: str, data: bytes) -> list[dict]:
+        """Speech to text. Returns Whisper's segments: each has a start time in seconds and its text."""
+        response = self._client.audio.transcriptions.create(
+            file=(filename, data), model=TRANSCRIBE_MODEL, response_format="verbose_json")
+        return response.model_dump().get("segments") or []
+
 
 def _retry_after(error: groq.APIStatusError) -> float | None:
     try:
@@ -61,15 +69,14 @@ def _wait_text(seconds: float) -> str:
     return f"about {round(seconds / 3600)} hours"
 
 
-def _call(backend: Backend, system: str, user: str, schema_name: str, schema: dict,
-          parse: Callable[[str], object], sleep: Callable[[float], None]):
-    """Send one request, retrying once on problems that a retry can fix."""
+def _with_retries(action: Callable[[], T], label: str, sleep: Callable[[float], None]) -> T:
+    """Run one AI request (and the check of its answer), retrying once on problems a retry can fix."""
     problem = "unknown"
     for attempt in range(1, MAX_ATTEMPTS + 1):
         started = time.perf_counter()
         try:
-            result = parse(backend.complete(system, user, schema_name, schema))
-            log.info("AI call ok: %s attempt=%d seconds=%.1f", schema_name, attempt, time.perf_counter() - started)
+            result = action()
+            log.info("AI call ok: %s attempt=%d seconds=%.1f", label, attempt, time.perf_counter() - started)
             return result
         except BadOutput as error:
             problem = "bad_output"
@@ -104,14 +111,14 @@ def _call(backend: Backend, system: str, user: str, schema_name: str, schema: di
                 raise AIError("The AI service rejected the request. Please try again.") from None
         except groq.APIStatusError as error:
             if error.status_code == 413:
-                raise AIError("This transcript is too long for the free AI plan. "
-                              "Paste a shorter section.") from None
+                raise AIError("This is too large for the free AI plan. "
+                              "Try a shorter section.") from None
             log.error("AI service returned %s", error.status_code)
             raise AIError("The AI service returned an error. Please try again.") from None
 
     messages = {
-        "bad_output": "The AI couldn't produce a usable answer for this transcript after two tries. "
-                      "Try again, or paste a cleaner or shorter section.",
+        "bad_output": "The AI couldn't produce a usable answer for this after two tries. "
+                      "Try again, or use a cleaner or shorter section.",
         "timeout": f"The AI took longer than {TIMEOUT_SECONDS} seconds to respond, twice. Please try again.",
         "connection": "The app couldn't reach the AI service. Check back in a minute.",
         "server": "The AI service is having problems right now. Please try again in a minute.",
@@ -122,8 +129,11 @@ def _call(backend: Backend, system: str, user: str, schema_name: str, schema: di
 def generate_study_pack(backend: Backend, transcript: str, index: TranscriptIndex,
                         rng: random.Random | None = None, sleep: Callable[[float], None] = time.sleep) -> StudyPack:
     """Make the overview, chapters and quiz in one request."""
-    return _call(backend, prompts.STUDY_PACK, prompts.study_pack_message(transcript),
-                 "study_pack", STUDY_PACK_SCHEMA, lambda raw: parse_study_pack(raw, index, rng), sleep)
+    message = prompts.study_pack_message(transcript)
+    return _with_retries(
+        lambda: parse_study_pack(backend.complete(prompts.STUDY_PACK, message, "study_pack", STUDY_PACK_SCHEMA),
+                                 index, rng),
+        "study_pack", sleep)
 
 
 def revise_overview(backend: Backend, transcript: str, overview: str, request: str,
@@ -134,5 +144,26 @@ def revise_overview(backend: Backend, transcript: str, overview: str, request: s
         raise InputError("Say how you'd like the summary changed, for example \"shorter\".")
     if len(request) > MAX_REVISION_CHARS:
         raise InputError(f"Please keep the request under {MAX_REVISION_CHARS} characters.")
-    return _call(backend, prompts.REVISE_OVERVIEW, prompts.revise_message(transcript, overview, request),
-                 "overview", OVERVIEW_SCHEMA, parse_overview, sleep)
+    message = prompts.revise_message(transcript, overview, request)
+    return _with_retries(
+        lambda: parse_overview(backend.complete(prompts.REVISE_OVERVIEW, message, "overview", OVERVIEW_SCHEMA)),
+        "overview", sleep)
+
+
+def _segments_to_cues(segments) -> list[tuple[float, str]]:
+    cues = []
+    for segment in segments if isinstance(segments, list) else []:
+        if not isinstance(segment, dict):
+            continue
+        text, start = (segment.get("text") or "").strip(), segment.get("start")
+        if text and isinstance(start, (int, float)):
+            cues.append((float(start), text))
+    if not cues:
+        raise BadOutput("Speech-to-text returned no usable segments.")
+    return cues
+
+
+def transcribe_audio(backend: Backend, filename: str, data: bytes,
+                     sleep: Callable[[float], None] = time.sleep) -> list[tuple[float, str]]:
+    """Turn audio into (start seconds, text) lines. Raises AIError with a message for the user."""
+    return _with_retries(lambda: _segments_to_cues(backend.transcribe(filename, data)), "transcription", sleep)
