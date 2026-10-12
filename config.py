@@ -14,3 +14,4 @@ TIMEOUT_SECONDS = 60            # give up on one AI call after this long
 MAX_ATTEMPTS = 2                # one try plus one retry, so a bad run costs at most 2 requests
 MAX_WAIT_SECONDS = 10           # wait out a short rate limit; tell the user about a long one
 MAX_REVISION_CHARS = 200        # length limit for "how should I change the summary?"
+MAX_RUNS_PER_SESSION = 12       # AI requests one visitor can trigger, to protect the shared daily quota

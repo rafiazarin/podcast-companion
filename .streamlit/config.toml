@@ -1,2 +1,5 @@
 [server]
 maxUploadSize = 1  # MB. Streamlit rejects bigger files before my code runs.
+
+[browser]
+gatherUsageStats = false  # no usage statistics sent to Streamlit
