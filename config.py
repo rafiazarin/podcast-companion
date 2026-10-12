@@ -3,3 +3,6 @@
 MODEL = "openai/gpt-oss-120b"   # chosen after the quote test (see probes/)
 MAX_TRANSCRIPT_WORDS = 3500     # fits Groq's free 8,000 tokens per minute with room for the answer
 MIN_QUOTE_WORDS = 6             # shorter quotes ("Interleaving.") prove nothing, so they don't count
+MIN_TRANSCRIPT_WORDS = 150      # less than this is too little to summarise or quiz on
+MAX_UPLOAD_BYTES = 200_000      # 3,500 words is about 20 KB, so this is generous
+UPLOAD_TYPES = ["txt", "srt", "vtt"]
