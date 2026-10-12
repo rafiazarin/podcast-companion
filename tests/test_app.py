@@ -162,3 +162,11 @@ def test_plain_text_says_no_times_are_shown(fake):
     at = generate_sample(start())
     assert "never guesses them" in texts(at.caption)
     assert not any("·" in e.label for e in at.expander if e.label[:1].isdigit())
+
+
+def test_loading_the_sample_empties_the_upload_box(fake):
+    at = start()
+    before = at.session_state["uploader_key"]
+    button(at, "Load a sample episode").click().run()
+    assert at.session_state["uploader_key"] == before + 1
+    assert at.text_area(key="transcript_text").value == SAMPLE

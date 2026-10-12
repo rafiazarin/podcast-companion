@@ -60,6 +60,7 @@ state = st.session_state
 state.setdefault("runs", 0)
 state.setdefault("result", None)
 state.setdefault("result_id", 0)
+state.setdefault("uploader_key", 0)      # changing this empties the upload box
 state.setdefault("transcriptions", {})   # speech-to-text results for this visit, so the same file isn't sent twice
 
 
@@ -168,6 +169,7 @@ def save_result(pack, transcript, marker, source, seconds, cached) -> None:
 
 def load_sample() -> None:
     state.transcript_text = SAMPLE_TEXT
+    state.uploader_key += 1   # remove any uploaded file, otherwise it would be used instead of the sample
 
 
 def queue_revision(label: str, request: str) -> None:
@@ -229,7 +231,8 @@ def show_trust(result) -> None:
               else f"Made by {MODEL} in {result['seconds']:.1f} s.")
     st.caption(f"{origin} Each chapter and quiz answer quotes the transcript, and the app looks every quote up "
                f"itself (at least {MIN_QUOTE_WORDS} words, same words in the same order). "
-               "The overview has no quote, so it isn't checked this way.")
+               "The overview has no quote, so it isn't checked this way. Generating again makes a fresh "
+               "version, so the chapters and questions can differ a little each time.")
     if pack.dropped_questions:
         st.caption(f"{pack.dropped_questions} broken quiz question(s) were removed before showing the quiz.")
     for notice in result["notices"]:
@@ -342,7 +345,7 @@ st.caption("Only use episodes you have permission to use. Text and audio are sen
 st.text_area("Transcript", key="transcript_text", height=220,
              placeholder="Paste the transcript here, or load the sample below.")
 uploaded = st.file_uploader(
-    "Or upload a file", type=UPLOAD_TYPES,
+    "Or upload a file", type=UPLOAD_TYPES, key=f"upload_{state.uploader_key}",
     help=f"Text: .txt, or .srt/.vtt subtitles (their timings are kept). "
          f"Audio: .mp3, .m4a, .wav, .ogg or .flac, up to {MAX_AUDIO_MINUTES} minutes and 25 MB.")
 st.button("Load a sample episode", on_click=load_sample,
