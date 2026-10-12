@@ -23,7 +23,7 @@ Above the results, the app shows how many quotes it found in the transcript, for
 - Audio: up to 20 minutes and 25 MB.
 - Each visit can make 12 AI requests. A text run uses 1 request, an audio run uses 2, and each overview change uses 1.
 - Timestamps are shown only when the input has real timings: audio, .srt or .vtt files, or a pasted transcript with times in it (for example a transcript copied from YouTube). Plain text gets no times. The app never guesses them.
-- The sample episode is a short invented conversation about study techniques. I wrote it with AI help for testing, so there are no permission issues with it.
+- The sample episode is a short invented conversation about study techniques, made for testing, so there are no permission issues with it.
 
 ## Run it on your computer
 
@@ -202,7 +202,3 @@ Maintenance:
 1. Handle full-length episodes. Split long transcripts into parts, make notes for each part, then combine them. This removes the 3,500-word limit, which is the biggest gap for real podcasts, since many episodes are an hour or more.
 2. Measure quality on real episodes. Build a small test set of real transcripts, including messy auto-captions, and track the quote rate and quiz accuracy for each model and prompt change. Right now my numbers come from a few runs, and a test set would show whether a change really helps.
 3. Keep working when the free quota runs out. Fall back to a second model or provider when Groq returns a rate limit, and show remaining capacity more clearly. With many users at once, the shared free quota is the most likely thing to fail.
-
-## How I built it
-
-I used an AI coding assistant (Claude) while building this. I chose the approach and the provider, ran every test and every real AI call myself, and I can explain and change any part of the code.
