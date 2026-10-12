@@ -1,0 +1,68 @@
+The Study Hour, Episode 12: Why rereading doesn't work
+(A fictional episode written as a test sample for this project. The show and the people in it are invented.)
+
+NADIA: Welcome to The Study Hour. I'm Nadia, and today we're talking about something every student does, and most of us do badly: revising for exams. My guest is Arif, who tutors university students on how to study. Arif, welcome.
+
+ARIF: Thanks for having me, Nadia. It's a topic I could talk about all day.
+
+NADIA: Let's start with a confession. Before an exam, I reread my notes three or four times. Is that a bad idea?
+
+ARIF: It's the most common strategy, and it feels productive, but it's one of the weakest. When you reread, the material looks familiar, and that familiarity tricks you into thinking you know it. Recognising something on the page is not the same as being able to produce it from memory in an exam hall.
+
+NADIA: So what should I do instead?
+
+ARIF: The single most useful habit is active recall. That means closing the book and trying to pull the information out of your own head. You can do it with flashcards, with practice questions, or just by writing down everything you remember about a topic on a blank page. It feels harder than rereading, and that difficulty is exactly what makes it work.
+
+NADIA: Why does the difficulty help?
+
+ARIF: Every time you successfully retrieve a memory, you make it easier to retrieve the next time. Researchers call this the testing effect. A test isn't only a way to measure what you know. The act of answering questions actually strengthens what you know.
+
+NADIA: That's a nice idea. Testing as studying, not just checking.
+
+ARIF: Exactly. And when you get an answer wrong, that's useful too. Check the correct answer straight away, so you don't keep practising the mistake.
+
+NADIA: Let's move to the second big idea you wanted to cover. Timing.
+
+ARIF: Yes, spacing. Most students cram, which means doing all their studying in one long session right before the exam. Cramming can get you through a test the next morning, but the memories fade quickly. Spaced repetition means spreading your reviews out over days and weeks, with the gaps getting longer each time.
+
+NADIA: Where does that come from?
+
+ARIF: It goes back to Hermann Ebbinghaus, a German psychologist who studied his own memory in the 1880s. He memorised lists of nonsense syllables and tested how much he forgot over time. He found that forgetting is fast at first and then slows down. That pattern is called the forgetting curve. The practical lesson is that reviewing something just as you are starting to forget it gives you a lot of value for very little time.
+
+NADIA: How would a student actually plan that?
+
+ARIF: Keep it simple. Review new material the next day, then a few days later, then a week later, then before the exam. Flashcard apps can schedule this for you, but a paper calendar works fine. The important part is starting early enough that there is room for the gaps.
+
+NADIA: So spacing and active recall work together.
+
+ARIF: They work best together. Spacing decides when you study, and active recall decides how you study. If you only remember one thing from this episode, make it this: test yourself, and spread it out.
+
+NADIA: There's a third idea on my list. Interleaving. I have to admit I'd never heard the word before.
+
+ARIF: Interleaving means mixing different types of problems in one session instead of practising one type at a time. Say you're studying statistics. The usual way is to do ten problems on the t-test, then ten on the chi-square test. Interleaving mixes them up, so you have to decide which method each problem needs.
+
+NADIA: Doesn't that make practice slower?
+
+ARIF: It does, and students often feel they're doing worse. But in the exam, nobody tells you which chapter a question comes from. Interleaving trains you to recognise the type of problem, and that's a skill blocked practice never gives you.
+
+NADIA: Let's talk about something practical. Highlighting. My textbooks are basically yellow.
+
+ARIF: Highlighting isn't harmful in small doses, but on its own it does very little. It's passive, like rereading. If you want to keep highlighting, turn each highlight into a question afterwards, and then answer that question from memory a few days later. That way the highlight becomes the start of active recall instead of the end of your studying.
+
+NADIA: And what about sleep? Students love to pull all-nighters before an exam.
+
+ARIF: Sleep matters more than most students think. Sleep plays an important role in turning the day's learning into lasting memories. An all-nighter swaps that for a few extra hours of tired, low-quality studying. In my experience, the students who protect their sleep in exam week do better than the ones who sacrifice it.
+
+NADIA: Before we finish, what's one mistake you see again and again?
+
+ARIF: Leaving the testing until the very end. Students study for weeks and only try past papers in the last two days. By then it's too late to fix the gaps the papers reveal. Do a practice question in the first week, even if you get it wrong. Your mistakes tell you where to spend your time.
+
+NADIA: Let me try to sum up. Don't rely on rereading. Test yourself with active recall. Spread your reviews out with spaced repetition. Mix problem types with interleaving. Turn highlights into questions, and protect your sleep.
+
+ARIF: That's a better summary than I could have given.
+
+NADIA: Arif, thank you for joining us on The Study Hour.
+
+ARIF: Thank you, Nadia. Good luck to everyone with exams.
+
+NADIA: That's all for this episode. Next time, we'll talk about how to take notes in lectures. Until then, happy studying.

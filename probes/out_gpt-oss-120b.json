@@ -1,0 +1,87 @@
+{
+  "overview": "In this episode the hosts explain why rereading notes is ineffective and introduce three evidence\u2011based study techniques: active recall, spaced repetition, and interleaving. They describe how testing yourself strengthens memory, how spreading reviews over time combats the forgetting curve, and why mixing problem types improves transfer. Practical tips such as turning highlights into questions, using flashcard apps, and protecting sleep round out the advice.",
+  "chapters": [
+    {
+      "title": "Why Rereading Fails and Active Recall Works",
+      "summary": "The hosts discuss how rereading creates a false sense of familiarity and introduce active recall as a more powerful alternative, explaining the testing effect.",
+      "start_quote": "It's the most common strategy, and it feels productive, but it's one of the weakest."
+    },
+    {
+      "title": "Spacing Your Study Sessions",
+      "summary": "They cover the forgetting curve, the benefits of spaced repetition, and give a simple schedule for reviewing material over days and weeks.",
+      "start_quote": "Yes, spacing. Most students cram, which means doing all their studying in one long session right before the exam."
+    },
+    {
+      "title": "Interleaving Different Problem Types",
+      "summary": "The concept of interleaving is explained, showing how mixing problem types forces learners to identify the right method and improves exam performance.",
+      "start_quote": "Interleaving means mixing different types of problems in one session instead of practising one type at a time."
+    },
+    {
+      "title": "Practical Tweaks: Highlighting and Sleep",
+      "summary": "The episode offers actionable advice on turning highlights into questions and emphasizes the crucial role of sleep for memory consolidation.",
+      "start_quote": "Highlighting isn't harmful in small doses, but on its own it does very little."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "According to the episode, why does rereading notes give a false sense of knowing the material?",
+      "options": [
+        "It forces you to write the information down.",
+        "It makes the material look familiar, which tricks you into thinking you know it.",
+        "It tests your ability to retrieve information.",
+        "It spreads review sessions over time."
+      ],
+      "answer_index": 1,
+      "explanation": "Rereading creates familiarity, which the hosts say tricks you into thinking you know the material, but recognition is not the same as recall.",
+      "evidence_quote": "When you reread, the material looks familiar, and that familiarity tricks you into thinking you know it."
+    },
+    {
+      "question": "What is the main benefit of active recall described in the podcast?",
+      "options": [
+        "It makes studying feel easier.",
+        "It allows you to highlight more effectively.",
+        "It strengthens memory by forcing retrieval.",
+        "It eliminates the need for spacing."
+      ],
+      "answer_index": 2,
+      "explanation": "Active recall forces you to retrieve information, which strengthens memory according to the testing effect.",
+      "evidence_quote": "Every time you successfully retrieve a memory, you make it easier to retrieve the next time."
+    },
+    {
+      "question": "Which psychologist is credited with discovering the forgetting curve?",
+      "options": [
+        "B.F. Skinner",
+        "Hermann Ebbinghaus",
+        "Jean Piaget",
+        "Lev Vygotsky"
+      ],
+      "answer_index": 1,
+      "explanation": "The episode mentions Hermann Ebbinghaus as the researcher who studied his own memory and identified the forgetting curve.",
+      "evidence_quote": "It goes back to Hermann Ebbinghaus, a German psychologist who studied his own memory in the 1880s."
+    },
+    {
+      "question": "How does interleaving improve exam performance, according to the hosts?",
+      "options": [
+        "It lets you finish more problems faster.",
+        "It trains you to recognise which method to use for each problem.",
+        "It reduces the total amount of studying needed.",
+        "It eliminates the need for active recall."
+      ],
+      "answer_index": 1,
+      "explanation": "Interleaving mixes problem types so learners must decide which method applies, training recognition skills useful in exams.",
+      "evidence_quote": "Interleaving trains you to recognise the type of problem, and that's a skill blocked practice never gives you."
+    },
+    {
+      "question": "What practical step does the episode suggest for making highlighting more effective?",
+      "options": [
+        "Highlight every sentence in the textbook.",
+        "Only highlight definitions.",
+        "Turn each highlight into a question and later answer it from memory.",
+        "Use multiple colors for different chapters."
+      ],
+      "answer_index": 2,
+      "explanation": "The hosts recommend converting highlights into questions and then recalling the answers later, turning a passive activity into active recall.",
+      "evidence_quote": "If you want to keep highlighting, turn each highlight into a question afterwards, and then answer that question from memory a few days later."
+    }
+  ]
+}

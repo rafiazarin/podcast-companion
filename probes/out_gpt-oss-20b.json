@@ -1,0 +1,92 @@
+{
+  "overview": "In this episode Nadia and tutor Arif discuss why rereading notes is ineffective and explain evidence-based study strategies such as active recall, spaced repetition, interleaving, effective highlighting, and the importance of sleep. They outline how testing yourself strengthens memory, how spreading reviews over time combats forgetting, and why mixing problem types prepares students for varied exam questions. The hosts emphasize turning passive habits into active ones and warn against late\u2011stage testing and all\u2011night studying.",
+  "chapters": [
+    {
+      "title": "Confession About Rereading",
+      "start_quote": "Let's start with a confession.",
+      "summary": "Nadia admits she rereads notes multiple times before exams, setting the stage for the discussion of ineffective study habits."
+    },
+    {
+      "title": "Active Recall as a Core Habit",
+      "start_quote": "The single most useful habit is active recall.",
+      "summary": "Arif introduces active recall, urging students to close the book and pull information from memory using flashcards or blank-page summaries."
+    },
+    {
+      "title": "The Power of Spacing",
+      "start_quote": "Yes, spacing.",
+      "summary": "The concept of spaced repetition is explained, with emphasis on reviewing material over days and weeks to align with the forgetting curve."
+    },
+    {
+      "title": "Interleaving Problems",
+      "start_quote": "Interleaving.",
+      "summary": "Arif describes interleaving as mixing different problem types in one session, improving recognition skills needed for exams."
+    },
+    {
+      "title": "Highlighting and Sleep",
+      "start_quote": "Highlighting.",
+      "summary": "The hosts cover how highlighting can be useful if turned into questions and discuss the critical role of sleep in consolidating learning."
+    }
+  ],
+  "quiz": [
+    {
+      "question": "What is the primary benefit of active recall over rereading?",
+      "options": [
+        "It makes studying feel easier",
+        "It strengthens memory retrieval",
+        "It helps students memorize more text",
+        "It allows faster completion of notes"
+      ],
+      "answer_index": 1,
+      "explanation": "Active recall improves the ability to retrieve information from memory, making learning more durable.",
+      "evidence_quote": "It feels harder than rereading, and that difficulty is exactly what makes it work."
+    },
+    {
+      "question": "Which psychological phenomenon explains why testing improves memory?",
+      "options": [
+        "The forgetting curve",
+        "The testing effect",
+        "The spacing effect",
+        "The interleaving effect"
+      ],
+      "answer_index": 1,
+      "explanation": "The testing effect refers to the strengthening of memory through retrieval practice.",
+      "evidence_quote": "Researchers call this the testing effect. A test isn't only a way to measure what you know."
+    },
+    {
+      "question": "According to the episode, when should students start reviewing new material for spaced repetition?",
+      "options": [
+        "One week before the exam",
+        "On the day of the exam",
+        "The next day after learning it",
+        "Two weeks after learning it"
+      ],
+      "answer_index": 2,
+      "explanation": "Students should review new material the next day, then after a few days, a week later, etc.",
+      "evidence_quote": "Review new material the next day, then a few days later, then a week later, then before the exam."
+    },
+    {
+      "question": "Interleaving involves:",
+      "options": [
+        "Practicing one type of problem repeatedly",
+        "Mixing different types of problems in one session",
+        "Highlighting all key points",
+        "Skipping practice until the last week"
+      ],
+      "answer_index": 1,
+      "explanation": "Interleaving means mixing different problem types to improve recognition during exams.",
+      "evidence_quote": "Interleaving means mixing different types of problems in one session instead of practising one type at a time."
+    },
+    {
+      "question": "Why does Arif recommend protecting sleep during exam week?",
+      "options": [
+        "Because all\u2011night studying is the best way to learn",
+        "Sleep helps consolidate learning into lasting memories",
+        "Sleep keeps students awake for more study time",
+        "It prevents students from missing classes"
+      ],
+      "answer_index": 1,
+      "explanation": "Sleep plays an important role in turning the day's learning into lasting memories.",
+      "evidence_quote": "Sleep plays an important role in turning the day's learning into lasting memories."
+    }
+  ]
+}
