@@ -413,8 +413,7 @@ with st.expander("How this works, and its limits"):
   is switched on for this app's Groq account. Only the built-in sample's result is kept in memory.
 - **Sleep:** the free host pauses the app after 12 hours without visitors, so the first load can be slow.
 """)
-st.caption("Built by Rafia Zarin Alisha for the Thealon AI Engineering Challenge · "
-           "[Source code](https://github.com/rafiazarin/podcast-companion)")
+st.caption("Made by Rafia Zarin Alisha · [Source code](https://github.com/rafiazarin/podcast-companion)")
 
 # Filled last, so it also counts a revision made further down the page.
 if audio_upload:

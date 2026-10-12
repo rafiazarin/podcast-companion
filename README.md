@@ -2,7 +2,6 @@
 
 Podcast Companion turns a podcast transcript or a short audio clip into an overview, chapters you can open, and a quiz. Every chapter and every quiz answer quotes the transcript, and the app checks each quote itself before showing it.
 
-
 - Live app: https://podcast-companion-rafia.streamlit.app/
 - Code: https://github.com/rafiazarin/podcast-companion
 
@@ -103,7 +102,7 @@ I also compared two Groq models on the same sample. gpt-oss-20b was faster (1.5 
 
 Why I chose Groq with gpt-oss-120b: it was the provider I could actually test, it returned the exact JSON shape every time, and its quotes worked with my checker. The cost is the 3,500-word limit per run on the free plan, which the app states clearly.
 
-For the screen, I chose Streamlit on Streamlit Community Cloud over Gradio on Hugging Face Spaces (good for one input and one output, but awkward for a clickable quiz) and FastAPI with a separate frontend (more control, but two codebases for a 48-hour task).
+For the screen, I chose Streamlit on Streamlit Community Cloud over Gradio on Hugging Face Spaces (good for one input and one output, but awkward for a clickable quiz) and FastAPI with a separate frontend (more control, but two codebases, which was too much for the time I had).
 
 Sources I used (all checked on 11 and 12 October 2026):
 
@@ -119,7 +118,7 @@ Sources I used (all checked on 11 and 12 October 2026):
 - Groq speech to text: https://console.groq.com/docs/speech-to-text
 - Groq data retention: https://console.groq.com/docs/your-data
 - Streamlit Community Cloud deploy and app limits: https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deploy and https://docs.streamlit.io/deploy/streamlit-community-cloud/manage-your-app
-- Edison Research, The UK Podcast Consumer 2025 (for who listens to podcasts), linked in the challenge brief
+- Edison Research, The UK Podcast Consumer 2025 (for who listens to podcasts): https://www.edisonresearch.com/the-uk-podcast-consumer-2025/
 
 ## Debugging example: a quote check that passed but proved nothing
 
@@ -202,7 +201,7 @@ Maintenance:
 
 1. Handle full-length episodes. Split long transcripts into parts, make notes for each part, then combine them. This removes the 3,500-word limit, which is the biggest gap for real podcasts, since many episodes are an hour or more.
 2. Measure quality on real episodes. Build a small test set of real transcripts, including messy auto-captions, and track the quote rate and quiz accuracy for each model and prompt change. Right now my numbers come from a few runs, and a test set would show whether a change really helps.
-3. Keep working when the free quota runs out. Fall back to a second model or provider when Groq returns a rate limit, and show remaining capacity more clearly. With several reviewers or real users at once, the shared free quota is the most likely thing to fail.
+3. Keep working when the free quota runs out. Fall back to a second model or provider when Groq returns a rate limit, and show remaining capacity more clearly. With many users at once, the shared free quota is the most likely thing to fail.
 
 ## How I built it
 
