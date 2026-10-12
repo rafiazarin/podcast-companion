@@ -2,7 +2,6 @@
 
 Podcast Companion turns a podcast transcript or a short audio clip into an overview, chapters you can open, and a quiz. Every chapter and every quiz answer quotes the transcript, and the app checks each quote itself before showing it.
 
-I built this for the Thealon Animation Studios AI Engineering Challenge.
 
 - Live app: https://podcast-companion-rafia.streamlit.app/
 - Code: https://github.com/rafiazarin/podcast-companion
