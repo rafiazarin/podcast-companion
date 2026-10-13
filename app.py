@@ -224,15 +224,9 @@ def run_pending_revision() -> None:
 def show_trust(result) -> None:
     pack = result["pack"]
     if pack.quotes_verified == pack.quotes_total:
-        st.success(f"✅ {trust_line(pack)}")
+        st.success(f"✅ {trust_line(pack)} Open any chapter or quiz answer to see the exact words.")
     else:
         st.warning(f"⚠️ {trust_line(pack)} Items marked ⚠️ couldn't be checked, so treat them with care.")
-    origin = ("Loaded from memory: no AI request used." if result["cached"]
-              else f"Made by {MODEL} in {result['seconds']:.1f} s.")
-    st.caption(f"{origin} Each chapter and quiz answer quotes the transcript, and the app looks every quote up "
-               f"itself (at least {MIN_QUOTE_WORDS} words, same words in the same order). "
-               "The overview has no quote, so it isn't checked this way. Generating again makes a fresh "
-               "version, so the chapters and questions can differ a little each time.")
     if pack.dropped_questions:
         st.caption(f"{pack.dropped_questions} broken quiz question(s) were removed before showing the quiz.")
     for notice in result["notices"]:
@@ -247,8 +241,8 @@ def show_overview(result) -> None:
         st.caption(f"Revised ({label}). Version {len(result['overviews'])}.")
     st.write(text)
 
-    st.markdown("**Change the overview**")
-    st.caption("Only the overview is rewritten. The chapters and quiz stay as they are.")
+    st.markdown("**Not quite what you need? Change the overview**")
+    st.caption("Only the overview is rewritten. Your chapters and quiz stay as they are.")
     columns = st.columns(len(REVISION_PRESETS))
     for column, (name, request) in zip(columns, REVISION_PRESETS.items()):
         column.button(name, on_click=queue_revision, args=(name, request), key=f"preset_{name}")
@@ -336,60 +330,66 @@ def show_export(result) -> None:
 
 # ---------- page ----------
 
-st.title("🎧 Podcast Companion")
-st.write("Paste a podcast transcript or upload the audio, and get an overview, chapters you can open, "
-         "and a quiz. Every quote is checked against the transcript.")
-st.caption("Only use episodes you have permission to use. Text and audio are sent to Groq, an AI provider, "
-           "to be processed. This app doesn't store what you send.")
+def show_intro() -> None:
+    """What a first-time visitor needs to decide whether this is worth trying."""
+    st.title("🎧 Podcast Companion")
+    st.markdown("#### Remember what you listen to.")
+    st.write("Paste an episode's transcript. In a few seconds you get the main ideas, chapters you can "
+             "jump to, and a short quiz so it sticks. Every chapter and answer points to the exact words "
+             "in the episode, so nothing is made up.")
+    if state.result is None:
+        for column, (icon, title, text) in zip(st.columns(3), [
+                ("📝", "The gist", "A short overview you can make shorter, simpler or more detailed."),
+                ("📍", "Chapters", "Each with a summary and the transcript part it covers, with times when the input has them."),
+                ("🧠", "A quick quiz", "Five questions with answers, each backed by a quote from the episode.")]):
+            with column.container(border=True):
+                st.markdown(f"**{icon} {title}**")
+                st.caption(text)
 
-st.text_area("Transcript", key="transcript_text", height=220,
-             placeholder="Paste the transcript here, or load the sample below.")
-uploaded = st.file_uploader(
-    "Or upload a file", type=UPLOAD_TYPES, key=f"upload_{state.uploader_key}",
-    help=f"Text: .txt, or .srt/.vtt subtitles (their timings are kept). "
-         f"Audio: .mp3, .m4a, .wav, .ogg or .flac, up to {MAX_AUDIO_MINUTES} minutes and 25 MB.")
-st.button("Load a sample episode", on_click=load_sample,
-          help="A short invented episode about study techniques. It's free to try: its result is kept in memory.")
 
-raw, source = state.get("transcript_text", ""), "pasted text"
-audio_upload = uploaded is not None and is_audio(uploaded.name)
-if audio_upload:
-    st.audio(uploaded)
-    st.caption(f"Using the audio file {uploaded.name} instead of the text box. "
-               "It uses 2 AI requests: one to turn speech into text, one for the study pack.")
-elif uploaded is not None:
-    try:
-        raw, source = read_upload(uploaded.name, uploaded.getvalue()), f"file {uploaded.name}"
-        st.caption(f"Using the uploaded file {uploaded.name} instead of the text box.")
-    except InputError as problem:
-        st.warning(str(problem))
-        raw = ""
+def episode_input():
+    """The transcript box, the upload box and the buttons. Returns (raw text, source, uploaded file, is audio)."""
+    st.text_area("Transcript", key="transcript_text", height=220,
+                 placeholder="Paste the transcript here.")
+    st.caption("Tip: on YouTube, click ...more under the video, then Show transcript. Copy all of it and paste "
+               "it here. The times are kept, so chapters show when they start.")
+    uploaded = st.file_uploader(
+        "Or upload a file", type=UPLOAD_TYPES, key=f"upload_{state.uploader_key}",
+        help=f"Text: .txt, or .srt/.vtt subtitles (their timings are kept). "
+             f"Audio: .mp3, .m4a, .wav, .ogg or .flac, up to {MAX_AUDIO_MINUTES} minutes and 25 MB.")
+    st.caption(f"Up to {MAX_TRANSCRIPT_WORDS:,} words per run (roughly 18 to 25 minutes of talk), or audio up to "
+               f"{MAX_AUDIO_MINUTES} minutes. Only use episodes you have permission to use. What you send goes "
+               "to Groq, an AI provider, to be processed. This app doesn't store it.")
 
-word_count = len(raw.split())
-counter = st.empty()   # a placeholder: filled in at the very end of the page, so the number is never out of date
+    raw, source = state.get("transcript_text", ""), "pasted text"
+    audio_upload = uploaded is not None and is_audio(uploaded.name)
+    if audio_upload:
+        st.audio(uploaded)
+        st.caption(f"Using the audio file {uploaded.name} instead of the text box. "
+                   "It uses 2 AI requests: one to turn speech into text, one for the study pack.")
+    elif uploaded is not None:
+        try:
+            raw, source = read_upload(uploaded.name, uploaded.getvalue()), f"file {uploaded.name}"
+            st.caption(f"Using the uploaded file {uploaded.name} instead of the text box.")
+        except InputError as problem:
+            st.warning(str(problem))
+            raw = ""
+    return raw, source, uploaded, audio_upload
 
-if st.button("Generate study pack", type="primary", disabled=not (raw.strip() or audio_upload),
-             width="stretch"):
-    try:
-        if audio_upload:
-            generate_from_audio(uploaded.name, uploaded.getvalue())
-        else:
-            generate(raw, source)
-    except Exception:   # last safety net: log the details, show a calm message, never a traceback
-        log.exception("Unexpected error while generating")
-        st.error("Something unexpected went wrong. Please try again.")
 
-result = state.result
-if result:
-    st.divider()
+def show_results(result, raw, uploaded, audio_upload) -> None:
     current = f"audio:{hashlib.sha256(uploaded.getvalue()).hexdigest()}" if audio_upload else raw.strip()
     if current and current != result["marker"]:
-        st.info("The input above has changed since these results were made. Generate again to update them.")
+        st.info("The episode above has changed since these results were made. Generate again to update them.")
+    pack = result["pack"]
     st.subheader("Your study pack")
-    st.caption(f"From {result['source']}.")
+    origin = ("Loaded from memory: no AI request used." if result["cached"]
+              else f"Made in {result['seconds']:.1f} s.")
+    st.caption(f"From {result['source']} · {result['transcript'].word_count:,} words · {len(pack.chapters)} chapters "
+               f"· {len(pack.quiz)} quiz questions. {origin}")
     show_trust(result)
-    for tab, show in zip(st.tabs(["Overview", "Chapters", "Quiz", "Export"], key="result_tabs"),  # key: stay on the same tab after a click
-                         [show_overview, show_chapters, show_quiz, show_export]):
+    tabs = st.tabs(["📝 Overview", "📍 Chapters", "🧠 Quiz", "⬇️ Save"], key="result_tabs")  # key: stay on the same tab after a click
+    for tab, show in zip(tabs, [show_overview, show_chapters, show_quiz, show_export]):
         with tab:
             try:
                 show(result)
@@ -397,16 +397,49 @@ if result:
                 log.exception("Error while showing %s", show.__name__)
                 st.error("This part couldn't be shown. The other tabs still work.")
 
+
+show_intro()
+result = state.result
+# Before there are results, the episode box is open. After, it folds away so the results come first.
+# The label must not change while results exist, or Streamlit would treat it as a new box and close it.
+with st.expander("Your episode" if result is None else "Your episode · open to change it or try another one",
+                 expanded=result is None):
+    raw, source, uploaded, audio_upload = episode_input()
+    word_count = len(raw.split())
+    counter = st.empty()   # a placeholder: filled in at the very end of the page, so the number is never out of date
+    left, right = st.columns([2, 1])
+    clicked = left.button("Generate study pack", type="primary", disabled=not (raw.strip() or audio_upload),
+                          width="stretch")
+    right.button("Try a sample episode", on_click=load_sample, width="stretch",
+                 help="A short invented episode about study techniques. It's free to try: its result is kept in memory.")
+    made_before = state.result_id
+    if clicked:
+        try:
+            if audio_upload:
+                generate_from_audio(uploaded.name, uploaded.getvalue())
+            else:
+                generate(raw, source)
+        except Exception:   # last safety net: log the details, show a calm message, never a traceback
+            log.exception("Unexpected error while generating")
+            st.error("Something unexpected went wrong. Please try again.")
+if state.result_id != made_before:
+    st.rerun()   # new results: draw the page again so they appear right under the folded episode box
+
+if result:
+    show_results(result, raw, uploaded, audio_upload)
+
 st.divider()
 with st.expander("How this works, and its limits"):
     st.markdown(f"""
-- **AI:** {MODEL} on Groq's free plan. One request makes the overview, chapters and quiz together.
-- **Checking:** every chapter and quiz answer must quote the transcript. The app looks each quote up itself.
-  Quotes under {MIN_QUOTE_WORDS} words don't count. Quiz options are shuffled by the app, and broken questions are removed.
+- **AI:** {MODEL} on Groq's free plan. One request makes the overview, chapters and quiz together, usually in a few seconds.
+- **Checking:** every chapter and quiz answer must quote the transcript. The app looks each quote up itself:
+  at least {MIN_QUOTE_WORDS} words, the same words in the same order. The overview has no quote, so it isn't checked
+  this way. Quiz options are shuffled by the app, and broken questions are removed.
+- **Fresh each time:** generating again makes a new version, so chapters and questions can differ a little.
 - **Audio:** turned into text by {TRANSCRIBE_MODEL} on Groq, then handled like a transcript. The length is read
   from the file first, so anything over {MAX_AUDIO_MINUTES} minutes is turned away before it is sent.
-- **Limits:** up to {MAX_TRANSCRIPT_WORDS:,} words per run (about 20 to 25 minutes of speech), and
-  {MAX_RUNS_PER_SESSION} AI requests per visit, so the shared free quota lasts.
+- **Limits:** up to {MAX_TRANSCRIPT_WORDS:,} words per run (roughly 18 to 25 minutes, depending on how fast people
+  talk), and {MAX_RUNS_PER_SESSION} AI requests per visit, so the shared free quota lasts.
 - **Timestamps:** shown only when the input has real timings: audio, .srt/.vtt files, or transcripts with times
   in them (such as a copied YouTube transcript). Plain text gets no times. The app never guesses them.
 - **Privacy:** what you send goes to Groq to be processed and is not stored by this app. Zero Data Retention

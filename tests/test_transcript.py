@@ -2,6 +2,7 @@
 import pytest
 
 from config import MAX_TRANSCRIPT_WORDS, MIN_TRANSCRIPT_WORDS
+from grounding import TranscriptIndex
 from transcript import InputError, prepare, read_upload
 
 
@@ -62,6 +63,39 @@ def test_youtube_style_times_on_their_own_lines_are_kept():
     assert t.cue_times == [0, 45, 3723]
     assert t.word_count == 180
     assert "0:45" not in t.text
+
+
+def youtube_copy(captions):
+    """Captions in the layout YouTube copies today: each time on its own line, then a short line of speech."""
+    return "\n".join(f"{i // 60}:{i % 60:02d}\n{line}" for i, line in zip(range(0, 10_000, 3), captions))
+
+
+def test_spoken_clock_time_at_the_start_of_a_caption_line_does_not_lose_the_timings():
+    # A real bug: "10:00 a.m." looked like a time going backwards, so every timing was dropped,
+    # the times stayed in the text as words, and quotes across caption lines couldn't be found.
+    captions = [f"the guest explains part {n} of the idea in short words" for n in range(40)]
+    captions[20] = "10:00 a.m. is when she likes to wake up"
+    t = prepare(youtube_copy(captions))
+    assert t.has_times and len(t.cue_times) == 40
+    assert t.cue_times == sorted(t.cue_times)
+    assert "10:00 a.m. is when she likes to wake up" in t.text
+    assert "\n0:03" not in t.text and "1:00" not in t.text
+
+
+def test_a_quote_across_caption_lines_is_found_with_its_time():
+    captions = [f"line {n} has some ordinary spoken words" for n in range(40)]
+    captions[10:12] = ["the most important habit is to", "test yourself and spread it out"]
+    t = prepare(youtube_copy(captions))
+    check = TranscriptIndex(t.text).find("the most important habit is to test yourself and spread it out")
+    assert check.verified
+    assert t.seconds_at(check.start) == 30
+
+
+def test_sound_labels_are_removed():
+    captions = ["[Music]"] + [f"[laughter] line {n} has some ordinary words [snorts] here" for n in range(40)]
+    t = prepare(youtube_copy(captions))
+    assert "[" not in t.text and "laughter" not in t.text and "Music" not in t.text
+    assert "[" not in prepare("[Applause] " + words(200)).text
 
 
 def test_youtube_style_times_at_the_start_of_lines_are_kept():

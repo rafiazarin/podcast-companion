@@ -19,7 +19,7 @@ Above the results, the app shows how many quotes it found in the transcript, for
 
 ## Limits
 
-- Text: 150 to 3,500 words per run. That is about 20 to 25 minutes of speech.
+- Text: 150 to 3,500 words per run. That is roughly 18 to 25 minutes of speech, depending on how fast people talk. A real 20-minute YouTube clip I tested came to 3,757 words.
 - Audio: up to 20 minutes and 25 MB.
 - Each visit can make 12 AI requests. A text run uses 1 request, an audio run uses 2, and each overview change uses 1.
 - Timestamps are shown only when the input has real timings: audio, .srt or .vtt files, or a pasted transcript with times in it (for example a transcript copied from YouTube). Plain text gets no times. The app never guesses them.

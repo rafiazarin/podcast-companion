@@ -43,6 +43,9 @@ _SUBTITLE_TIMING = re.compile(r"^\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})[.,](\d{3})\
 # A YouTube-style line that starts with a time, e.g. "1:05" or "1:02:05", maybe followed by words
 _LEADING_TIME = re.compile(r"^\s*(\d{1,2}(?::\d{2}){1,2})(?:\s+(.*))?$")
 _TAG = re.compile(r"<[^>]+>")   # inline subtitle tags such as <c> or <00:00:01.000>
+# Sound labels in captions such as [Music] or [laughter]. They aren't speech, and the AI
+# leaves them out of its quotes, which would make a correct quote fail the check.
+_SOUND_LABEL = re.compile(r"\s*\[[^\[\]\n]{1,40}\]")
 
 
 def read_upload(filename: str, data: bytes) -> str:
@@ -81,7 +84,7 @@ def _subtitle_cues(lines: list[str]) -> list[tuple[float, str]] | None:
             continue
         if not stripped or stripped.isdigit() or stripped.upper().startswith("WEBVTT"):
             continue
-        words = _TAG.sub("", stripped)
+        words = _clean(_TAG.sub("", stripped))
         if cues:
             cues[-1] = (cues[-1][0], f"{cues[-1][1]} {words}".strip())
         else:
@@ -89,23 +92,45 @@ def _subtitle_cues(lines: list[str]) -> list[tuple[float, str]] | None:
     return [cue for cue in cues if cue[1]]
 
 
+def _clean(words: str) -> str:
+    return _SOUND_LABEL.sub("", words).strip()
+
+
 def _youtube_cues(lines: list[str]) -> list[tuple[float, str]] | None:
-    """Read 'time on its own line, or at the start of a line' transcripts. None if it isn't one."""
-    matches = [(i, _LEADING_TIME.match(line)) for i, line in enumerate(lines)]
-    timed = [(i, m) for i, m in matches if m]
-    times = [_clock_to_seconds(m.group(1)) for _, m in timed]
-    if len(timed) < 3 or times != sorted(times):   # a few stray times in normal text don't count
+    """Read transcripts with times on their own lines or at the start of lines. None if it isn't one.
+
+    People also say clock times out loud, and a caption line can start with one, for example
+    "10:00 a.m. and going to sleep later." So:
+    - If most times sit alone on their line (how YouTube copies today), a time followed by words is speech.
+    - A time that goes backwards is speech too, and stays in the text as words.
+    - If many times go backwards, this isn't a timed transcript at all.
+    """
+    matches = [_LEADING_TIME.match(line) for line in lines]
+    found = [m for m in matches if m]
+    if len(found) < 3:
         return None
+    times_alone = sum(1 for m in found if not m.group(2)) >= len(found) / 2
+
     cues: list[tuple[float, str]] = []
-    for line, match in matches:
-        if match:
-            cues.append((_clock_to_seconds(match.group(1)), (match.group(2) or "").strip()))
-        elif lines[line].strip():
-            start, words = cues[-1] if cues else (0.0, "")
-            if cues:
-                cues[-1] = (start, f"{words} {lines[line].strip()}".strip())
-            else:
-                cues.append((0.0, lines[line].strip()))
+    candidates, backwards, last = 0, 0, -1.0
+    for line, match in zip(lines, matches):
+        if match and not (times_alone and match.group(2)):
+            candidates += 1
+            seconds = _clock_to_seconds(match.group(1))
+            if seconds >= last:
+                last = seconds
+                cues.append((seconds, _clean(match.group(2) or "")))
+                continue
+            backwards += 1
+        words = _clean(line)
+        if not words:
+            continue
+        if cues:
+            cues[-1] = (cues[-1][0], f"{cues[-1][1]} {words}".strip())
+        else:
+            cues.append((0.0, words))
+    if candidates - backwards < 3 or backwards > candidates / 10:   # a few stray times in normal text don't count
+        return None
     return [cue for cue in cues if cue[1]]
 
 
@@ -127,7 +152,7 @@ def _checked(text: str, notices: list[str], starts=None, times=None) -> Transcri
                          "so there is enough to summarise and quiz on.")
     if words > MAX_TRANSCRIPT_WORDS:
         raise InputError(f"This transcript is {words:,} words. The free plan handles up to "
-                         f"{MAX_TRANSCRIPT_WORDS:,} words per run (about 20 to 25 minutes of speech). "
+                         f"{MAX_TRANSCRIPT_WORDS:,} words per run (roughly 18 to 25 minutes, depending on how fast people talk). "
                          "Paste a shorter section.")
     return Transcript(text, words, notices, starts or [], times or [])
 
@@ -146,4 +171,4 @@ def prepare(raw: str) -> Transcript:
     cues = _youtube_cues(lines)
     if cues is not None:
         return from_cues(cues, ["This transcript has times in it. I kept them, so chapters show when they start."])
-    return _checked(text, [])
+    return _checked(_SOUND_LABEL.sub("", text).strip(), [])

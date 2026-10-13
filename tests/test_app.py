@@ -51,7 +51,7 @@ def button(at, label):
 
 
 def generate_sample(at):
-    button(at, "Load a sample episode").click().run()
+    button(at, "Try a sample episode").click().run()
     button(at, "Generate study pack").click().run()
     return at
 
@@ -167,6 +167,6 @@ def test_plain_text_says_no_times_are_shown(fake):
 def test_loading_the_sample_empties_the_upload_box(fake):
     at = start()
     before = at.session_state["uploader_key"]
-    button(at, "Load a sample episode").click().run()
+    button(at, "Try a sample episode").click().run()
     assert at.session_state["uploader_key"] == before + 1
     assert at.text_area(key="transcript_text").value == SAMPLE
