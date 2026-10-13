@@ -9,7 +9,7 @@ The app sleeps after 12 hours without visitors (a limit of the free host). If yo
 
 ## What you can do with it
 
-1. Give it an episode. Paste a transcript, upload a .txt, .srt or .vtt file, or upload audio (.mp3, .m4a, .wav, .ogg or .flac). You can also click "Load a sample episode" to try it straight away.
+1. Give it an episode. Paste a transcript, upload a .txt, .srt or .vtt file, or upload audio (.mp3, .m4a, .wav, .ogg or .flac). You can also click "Try a sample episode" to try it straight away.
 2. Read the overview. You can ask for a shorter version, simpler words, more detail, or describe your own change. Only the overview is rewritten, and you can undo a change.
 3. Open the chapters. Each chapter opens to the part of the transcript it covers, with its first sentence highlighted.
 4. Take the quiz. After you check your answers, each question shows the right answer, a short reason, and the sentence from the transcript that proves it.
@@ -24,6 +24,7 @@ Above the results, the app shows how many quotes it found in the transcript, for
 - Each visit can make 12 AI requests. A text run uses 1 request, an audio run uses 2, and each overview change uses 1.
 - Timestamps are shown only when the input has real timings: audio, .srt or .vtt files, or a pasted transcript with times in it (for example a transcript copied from YouTube). Plain text gets no times. The app never guesses them.
 - The sample episode is a short invented conversation about study techniques, made for testing, so there are no permission issues with it.
+- The real transcript in my tests and demo is from "10 reasons to study abroad - how it changed my life" by Katie Blake (https://www.youtube.com/watch?v=l7vFE14Onr0), shared on YouTube under a Creative Commons Attribution licence. It is not stored in this repo.
 
 ## Run it on your computer
 
@@ -145,6 +146,22 @@ Other problems I hit and fixed:
 - The "AI requests left" counter was out of date after a revision, because it was drawn before the revision ran. It is now filled in at the end of the page.
 - After testing audio, clicking "Load a sample episode" still used the uploaded audio, because an upload takes priority over the text box. Loading the sample now empties the upload box.
 
+## Second debugging example: real YouTube transcripts
+
+What went wrong. On the last morning I tested the live app with real transcripts copied from YouTube instead of my sample. A 20-minute clip was rejected at 4,322 words. When I cut it shorter, 0 of 10 quotes were found and the chapters showed no times, even though the text was full of them. A second video, copied in a different browser, got 1 of 11.
+
+How I investigated. I ran my transcript reader on the exact text I had pasted and printed every time it found. In the first transcript, one caption line started with a time the speaker said out loud: "10:00 a.m. and going to sleep later." The reader took it as a timestamp, so the times seemed to jump to 10:00 and then back to 5:52. Because of that one line, it decided the whole thing wasn't a timed transcript. The times then stayed in the text as words, which split almost every quote and made the word count too high. The second video was copied in a different format. Each line had the time, then YouTube's hidden label for screen readers, glued to the words, like "1:041 minute, 4 secondsvery prepared". It also had chapter headings sitting in the middle of sentences.
+
+What I changed:
+
+- When most times sit on their own line, a time followed by words counts as speech. One time going backwards no longer cancels all the others.
+- The hidden label is removed, but only when it says exactly the same time as the clock, so real speech is never cut.
+- Chapter headings and sound labels like [Music] are taken out.
+- After these fixes the second video got 5 of 10. Its captions were auto-generated, with no punctuation, and the AI was tidying the words in its quotes. The prompt now tells it to copy messy text exactly, filler words included.
+- I added tests for each case with invented text in the same formats. The first one fails on the old code.
+
+Result. The 20-minute clip is really 3,757 words, and its times are kept. The second video went from 1 of 11 to 10 of 10 quotes, with chapter times. What I learned: test with real, messy input early. My sample was too clean to show any of this.
+
 ## Reliability and what can still go wrong
 
 How the app handles failures:
@@ -158,7 +175,7 @@ How the app handles failures:
 
 How I tested it:
 
-- 84 automated tests. They cover the quote check, input checks, the answer checks, every failure type (using a fake AI that fails on purpose), and the real screen (using Streamlit's own test tool to type, click and read the page).
+- 90 automated tests. They cover the quote check, input checks, the answer checks, every failure type (using a fake AI that fails on purpose), and the real screen (using Streamlit's own test tool to type, click and read the page).
 - Manual runs with the real AI: the sample got 10 of 10 quotes in 3.6 seconds. A one-minute test recording got 10 of 10 quotes, with the study pack made in 3.1 seconds.
 
 Known limits:
@@ -169,6 +186,7 @@ Known limits:
 - Long episodes have to be split by the user. The app doesn't split them itself yet.
 - Each run can give slightly different chapters and questions. Every quote is still checked.
 - The prompt tells the AI to treat the transcript as data and ignore instructions inside it. This lowers the risk of prompt injection but doesn't remove it.
+- I tested two real YouTube copy formats. Transcripts copied from other sites may use formats the app doesn't read yet. Then it shows no times rather than wrong ones.
 - The quote check handles Bangla script in the tests, but I haven't tested a full Bangla episode.
 
 Security and privacy:
