@@ -14,7 +14,11 @@ Rules:
   explanation: one sentence on why the answer is right.
   evidence_quote: the full sentence from the transcript that proves the answer, copied word for word,
   at least 8 words long.
-- Never put a speaker's name or label inside a quote. Never shorten a quote with "..."."""
+- Never put a speaker's name or label inside a quote. Never shorten a quote with "...".
+- Copy quotes exactly as the transcript has them, even when it is messy: keep filler words ("um", "like"),
+  repeated words, slang ("gonna") and mistakes. Don't fix grammar, spelling or wording.
+- Auto-generated transcripts often have no punctuation. Then a "sentence" is any run of 8 to 25 words
+  in a row, copied exactly."""
 
 REVISE_OVERVIEW = """You rewrite the overview of a podcast episode, following the user's request.
 
