@@ -92,6 +92,37 @@ def _subtitle_cues(lines: list[str]) -> list[tuple[float, str]] | None:
     return [cue for cue in cues if cue[1]]
 
 
+# Some browsers copy YouTube's hidden spoken label too, glued to the words:
+# "1:041 minute, 4 secondsvery prepared" is the time 1:04, the label "1 minute, 4 seconds", then speech.
+_LEADING_CLOCK = re.compile(r"^\s*(\d{1,2}(?::\d{2}){1,2})\s*")
+_SPOKEN_PART = re.compile(r"(\d+) (hour|minute|second)(s?)(,\s*)?")
+_UNIT_SECONDS = {"hour": 3600, "minute": 60, "second": 1}
+
+
+def _split_spoken_label(line: str) -> str:
+    """Turn "1:041 minute, 4 secondsvery prepared" into "1:04 very prepared". Other lines come back unchanged.
+
+    The label is only removed when it says exactly the same time as the clock, so speech is never cut.
+    """
+    clock = _LEADING_CLOCK.match(line)
+    if not clock:
+        return line
+    position, total, found = clock.end(), 0, False
+    while part := _SPOKEN_PART.match(line, position):
+        count, unit, plural = int(part.group(1)), part.group(2), part.group(3)
+        total += count * _UNIT_SECONDS[unit]
+        found = True
+        if plural and count == 1:   # "1 minutesome": the "s" starts the next word
+            position = part.start(3)
+            break
+        position = part.end()
+        if not part.group(4):       # no comma, so the label has ended
+            break
+    if not found or total != _clock_to_seconds(clock.group(1)):
+        return line
+    return f"{clock.group(1)} {line[position:].strip()}".strip()
+
+
 def _clean(words: str) -> str:
     return _SOUND_LABEL.sub("", words).strip()
 
@@ -105,11 +136,16 @@ def _youtube_cues(lines: list[str]) -> list[tuple[float, str]] | None:
     - A time that goes backwards is speech too, and stays in the text as words.
     - If many times go backwards, this isn't a timed transcript at all.
     """
+    lines = [_split_spoken_label(line) for line in lines]
     matches = [_LEADING_TIME.match(line) for line in lines]
     found = [m for m in matches if m]
     if len(found) < 3:
         return None
     times_alone = sum(1 for m in found if not m.group(2)) >= len(found) / 2
+    # When every caption line starts with its own time, a line without one is a chapter heading
+    # ("Chapter 2: Building confidence"), not speech. Left in, it would sit in the middle of a sentence.
+    untimed = sum(1 for line, m in zip(lines, matches) if not m and line.strip())
+    skip_headings = not times_alone and untimed <= len(found) / 4
 
     cues: list[tuple[float, str]] = []
     candidates, backwards, last = 0, 0, -1.0
@@ -122,6 +158,8 @@ def _youtube_cues(lines: list[str]) -> list[tuple[float, str]] | None:
                 cues.append((seconds, _clean(match.group(2) or "")))
                 continue
             backwards += 1
+        elif skip_headings and not match:
+            continue
         words = _clean(line)
         if not words:
             continue

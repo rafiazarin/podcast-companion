@@ -98,6 +98,44 @@ def test_sound_labels_are_removed():
     assert "[" not in prepare("[Applause] " + words(200)).text
 
 
+def spoken(seconds):
+    """The hidden label YouTube adds after a time: 64 -> "1 minute, 4 seconds"."""
+    minutes, secs = divmod(seconds, 60)
+    parts = [f"{minutes} minute{'s' * (minutes != 1)}"] if minutes else []
+    if secs or not minutes:
+        parts.append(f"{secs} second{'s' * (secs != 1)}")
+    return ", ".join(parts)
+
+
+def test_youtube_copy_with_glued_spoken_labels_and_chapter_headings():
+    # Some browsers copy the hidden label glued to the words: "1:041 minute, 4 secondsvery prepared".
+    lines = ["Chapter 1: Getting started"]
+    for n in range(40):
+        seconds = n * 31
+        lines.append(f"{seconds // 60}:{seconds % 60:02d}{spoken(seconds)}speech part {n} goes on with words")
+        if n == 20:
+            lines.append("Chapter 2: The middle part")
+    t = prepare("\n".join(lines))
+    assert t.has_times and len(t.cue_times) == 40
+    assert t.cue_times[:3] == [0, 31, 62]
+    assert "Chapter" not in t.text and "second" not in t.text and "minute" not in t.text
+    assert t.text.startswith("speech part 0 goes on")
+    assert "speech part 20 goes on with words\nspeech part 21" in t.text
+
+
+def test_a_label_that_does_not_match_the_clock_is_kept_as_speech():
+    lines = [f"{n}:00 the host talks about part {n} of the story" for n in range(40)]
+    lines[2] = "2:00 5 seconds later the guest answered"
+    assert "5 seconds later the guest answered" in prepare("\n".join(lines)).text
+
+
+def test_a_one_unit_label_gives_back_the_s_of_the_next_word():
+    lines = [f"{n}:00{spoken(n * 60)}some words here for part {n} of it" for n in range(40)]
+    t = prepare("\n".join(lines))
+    assert "some words here for part 1 of it" in t.text
+    assert t.cue_times[1] == 60
+
+
 def test_youtube_style_times_at_the_start_of_lines_are_kept():
     yt = "\n".join(f"{m}:00 " + words(40) for m in range(5))
     t = prepare(yt)
